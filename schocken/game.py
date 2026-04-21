@@ -31,8 +31,8 @@ NUM_TOKENS = 13
 
 class HandRank(Enum):
     SCHOCK_AUS = 7
-    SCHOCK     = 6  # two aces + one other (lower other = better, but stored as raw value)
-    JENNIE     = 5  # three of a kind
+    SCHOCK     = 6  # two aces + one other 
+    GENERAL    = 5  # three of a kind
     STREET     = 4  # 1-2-3
     SIMPLE     = 1  # everything else
 
@@ -62,8 +62,15 @@ def apply_sechsen_drehen(dice: list) -> list:
 
     TODO: Verify edge cases against your house rules and implement.
     """
-    # TODO: implement Sechsen-drehen
-    return dice[:]
+    if(dice.count(6) == 3):
+        return [1, 1]
+    elif(dice.count(6) == 2):
+        dice_list = [d for d in dice if d != 6]
+        dice_list.append(1)
+        return dice_list
+        
+    else:
+        return dice
 
 
 # ---------------------------------------------------------------------------
@@ -86,37 +93,63 @@ def evaluate(dice: list) -> Hand:
 
     TODO: Implement hand recognition. Suggested order of checks:
         1. sorted_dice == (1, 1, 1)  -> SCHOCK_AUS,  value = 0
-        2. two values are 1          -> SCHOCK,       value = the non-ace die
-        3. all three equal           -> JENNIE,       value = the repeated number
-        4. sorted_dice == (1, 2, 3)  -> STREET,       value = 0
-        5. else                      -> SIMPLE,        value = int of digits sorted desc
+        2. two values are 1          -> SCHOCK,      value = the non-ace die
+        3. all three equal           -> JENNIE,      value = the repeated number
+        4. sorted_dice == (1, 2, 3)  -> STREET,      value = 0
+        5. else                      -> SIMPLE,      value = int of digits sorted desc
                                         e.g. [6, 3, 5] -> 653
     """
-    # TODO
-    raise NotImplementedError("evaluate() not yet implemented — fill in the hand logic")
-
-
-def compare(a: "Hand", b: "Hand") -> int:
+    dice.sort()
+    
+    if(dice.count(1) == 3):
+        return Hand(dice, HandRank.SCHOCK_AUS, 0)
+    elif(dice.count(2) == 2):
+        return Hand(dice, HandRank.SCHOCK, dice[2])
+    elif(dice[0] == dice[1] == dice[2]):
+        return Hand(dice, HandRank.GENERAL, dice[0]) 
+    elif(dice[2] == dice[1] + 1 and dice[1] == dice[0] + 1):
+        return Hand(HandRank.STREET, 0)
+    else:
+        return Hand(HandRank.SIMPLE, int(str(dice[0]) + str(dice[1]) + str(dice[2])))
+    
+def compare(a: Hand, b: Hand) -> int:
     """Compare two hands.  Returns 1 if a wins, -1 if b wins, 0 if tied.
 
     TODO: Implement comparison logic:
         1. Higher HandRank.value wins.
-        2. Within SCHOCK: lower .value wins (lower non-ace die is better).
+        2. Within SCHOCK: higher .value wins (higher non-ace die is better).
         3. Within JENNIE / SIMPLE: higher .value wins.
-        4. Fewer rolls_used wins on a tie.
-        5. True ties are broken externally by player order.
+        4. True ties are broken externally by player order.
     """
-    # TODO
-    raise NotImplementedError("compare() not yet implemented")
-
+    if(a.rank.value > b.rank.value):
+        return 1
+    elif(a.rank.value < b.rank.value):
+        return -1
+    else:
+        if(a.value > b.value):
+            return 1
+        elif(a.value < b.value):
+            return -1
+        else:
+            return 1
+    
 
 def best_hand(hands: dict) -> str:
     """Return the player name whose Hand is best.
+    
+    Start with first 2 players, then compare the best always with a new one
 
     Args:
         hands: dict mapping player name -> Hand
     """
-    # TODO: use compare() to find the winner
+    best = list(hands.keys())[:1]
+    
+    for hand in list(hands.keys())[1:]:
+        result = compare(best, hand)
+        if(result == -1):
+            best = hand
+        #TODO hier weiter machen 
+    
     raise NotImplementedError
 
 
@@ -261,7 +294,7 @@ class SchockenGame:
             - Determine how many tokens they receive based on the best hand:
                 * SCHOCK_AUS -> all tokens in the pool (check rules for exact count)
                 * SCHOCK X   -> X tokens
-                * JENNIE     -> 3 tokens
+                * GENERAL     -> 3 tokens
                 * STREET     -> 2 tokens
                 * SIMPLE     -> 1 token
             - Update self.state.tokens[loser] += amount.
